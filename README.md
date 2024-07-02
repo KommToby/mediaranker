@@ -25,3 +25,19 @@ python main.py <username> [--force]
 
 - `<username>`: your Letterboxd username
 - `--force`: Optional flag to force rescan
+
+## ELO Mapping
+
+This uses ELO mapping to determine a films ranking, the key is below:
+
+★★★★★: 2000+
+★★★★½: 1900
+★★★★: 1800
+★★★½: 1700
+★★★: 1600
+★★½: 1500
+★★: 1400
+★½: 1300
+★: 1200
+½: 1100
+: 1000
