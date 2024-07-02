@@ -87,7 +87,8 @@ def load_films_with_ratings(films_filename):
     with open(films_filename, "r", encoding="utf8") as f:
         for line in f:
             title, rating = line.strip().rsplit(" - ", 1)
-            films[title] = star_rating_to_elo(rating)
+            if rating.lower() != "none": # no point including films with no rating
+                films[title] = star_rating_to_elo(rating)
     return films
 
 def load_sorted_films(sorted_films_filename):

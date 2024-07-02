@@ -7,7 +7,8 @@ import json
 import random
 import sys
 import io
-import os
+import queue
+import threading
 from media_sorter import load_films_with_ratings, load_sorted_films, save_sorted_films, update_ratings
 
 class MediaSorterGUI:
@@ -23,15 +24,47 @@ class MediaSorterGUI:
         self.film2 = None
         self.left_image = None
         self.right_image = None
-        
+        self.comparison_queue = queue.Queue()  # Initialize the comparison queue
         self.create_widgets()
-        self.ensure_sorted_films_initialized()  # Initialize sorted films
+        self.ensure_sorted_films_initialized()
+        self.preload_comparisons(3)  # Preload 3 comparisons initially
+        self.load_initial_films()
+        
+    def load_initial_films(self):
+        while self.comparison_queue.qsize() < 3:
+            pass  # Wait until we have preloaded comparisons
         self.load_next_films()
 
     def ensure_sorted_films_initialized(self):
         for film in self.films:
             if film not in self.sorted_films:
                 self.sorted_films[film] = self.films[film]
+
+    def preload_comparisons(self, num_comparisons):
+        def preload():
+            for _ in range(num_comparisons):
+                if len(self.current_films) < 2:
+                    self.current_films = list(self.films.keys())
+                    random.shuffle(self.current_films)
+                film1 = self.current_films.pop()
+                film2 = self.current_films.pop()
+                left_image_data = self.fetch_image_data(film1)
+                right_image_data = self.fetch_image_data(film2)
+                self.comparison_queue.put((film1, film2, left_image_data, right_image_data))
+        threading.Thread(target=preload).start()
+
+    def fetch_image_data(self, film_title):
+        url = f'https://letterboxd.com/film/{film_title.replace(" ", "-").lower()}/'
+        print(f"Fetching image for {film_title} from {url}")
+        r = requests.get(url)
+        soup = bs(r.text, 'html.parser')
+        script_w_data = soup.select_one('script[type="application/ld+json"]')
+        json_obj = json.loads(script_w_data.text.split(' */')[1].split('/* ]]>')[0])
+        image_url = json_obj['image']
+        print(f"Image URL: {image_url}")
+        response = requests.get(image_url)
+        img_data = response.content
+        return img_data
 
     def create_widgets(self):
         self.left_poster_label = tk.Label(self.root)
@@ -56,32 +89,33 @@ class MediaSorterGUI:
         self.right_button.grid(row=0, column=2, padx=10)
 
     def load_next_films(self):
-        if len(self.current_films) < 2:
-            self.current_films = list(self.films.keys())
-            random.shuffle(self.current_films)
+        if not self.comparison_queue.empty():
+            film1, film2, left_image_data, right_image_data = self.comparison_queue.get()
+            left_image = Image.open(io.BytesIO(left_image_data))
+            left_image = left_image.resize((200, 300), Image.LANCZOS)
+            self.left_image = ImageTk.PhotoImage(left_image)
+            
+            right_image = Image.open(io.BytesIO(right_image_data))
+            right_image = right_image.resize((200, 300), Image.LANCZOS)
+            self.right_image = ImageTk.PhotoImage(right_image)
 
-        self.film1 = self.current_films.pop()
-        self.film2 = self.current_films.pop()
-
-        self.left_image = self.get_poster_image(self.film1)
-        self.right_image = self.get_poster_image(self.film2)
-
-        if self.left_image:
+            self.film1, self.film2 = film1, film2
             self.left_poster_label.config(image=self.left_image)
-            self.left_poster_label.image = self.left_image 
-        if self.right_image:
+            self.left_poster_label.image = self.left_image  # Keep a reference to avoid garbage collection
             self.right_poster_label.config(image=self.right_image)
-            self.right_poster_label.image = self.right_image 
+            self.right_poster_label.image = self.right_image  # Keep a reference to avoid garbage collection
+        
+        self.preload_comparisons(1)  # Preload one more comparison
 
     def get_poster_image(self, film_title):
         url = f'https://letterboxd.com/film/{film_title.replace(" ", "-").lower()}/'
-        print(f"Fetching image for {film_title} from {url}")
+        # print(f"Fetching image for {film_title} from {url}")
         r = requests.get(url)
         soup = bs(r.text, 'html.parser')
         script_w_data = soup.select_one('script[type="application/ld+json"]')
         json_obj = json.loads(script_w_data.text.split(' */')[1].split('/* ]]>')[0])
         image_url = json_obj['image']
-        print(f"Image URL: {image_url}")
+        # print(f"Image URL: {image_url}")
         response = requests.get(image_url)
         img_data = response.content
         img = Image.open(io.BytesIO(img_data))
