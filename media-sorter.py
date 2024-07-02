@@ -33,6 +33,24 @@ def compare_films(f1, f2):
     res = int(input())
     return res
 
+def load_films(films_filmname):
+    films = open(films_filmname, "r", encoding="utf8").readlines()
+    films = [film.split(" - ")[0] for film in films]
+    random.shuffle(films)
+    return films
+
+def load_sorted_films(sorted_films_filename):
+    try:
+        sorted_films = [x.strip("\n") for x in open(sorted_films_filename, "r", encoding="utf8")]
+    except FileNotFoundError:
+        sorted_films = []
+    return sorted_films
+
+def save_sorted_films(sorted_films, sorted_films_filmname):
+    with open(sorted_films_filename, "w", encoding="utf8") as f:
+        for film in sorted_films:
+            f.write(f"{film}\n")
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python media-sorter.py <username>")
@@ -43,19 +61,10 @@ if __name__ == "__main__":
     films_filename = f"{target_user}_films.txt"
     sorted_films_filename = f"sorted_{target_user}_films.txt"
 
-    films = open(films_filename, "r", encoding="utf8").readlines()
-    films = [film.split(" - ")[0] for film in films]
-    random.shuffle(films)
-
-    try:
-        sorted_films = [x.strip("\n") for x in open(sorted_films_filename, "r", encoding="utf8")]
-    except FileNotFoundError:
-        # In case new account sorting, we initialise
-        sorted_films = []
+    films = load_films(films_filename)
+    sorted_films = load_sorted_films(sorted_films_filename)
     
     for film in films:
         if film not in sorted_films:
-            sorted_films = insert_film(sorted_films, film)
-            with open(sorted_films_filename, "w", encoding="utf8") as f:
-                for film1 in sorted_films:
-                    f.write(f"{film1}\n")
+            sorted_films = insert_film(sorted_films, film, compare_films)
+            save_sorted_films(sorted_films, sorted_films_filename)
