@@ -25,8 +25,8 @@ def main():
         print(f"Running film scraper for {letterboxd_username}")
         subprocess.run(['python', 'scrape-letterboxd.py', letterboxd_username])
 
-    # We always end up running media-sorter.py
-    subprocess.run(['python', 'media-sorter.py', letterboxd_username])
+    # We always end up running media-sorter-gui.py
+    subprocess.run(['python', 'media_sorter_gui.py', letterboxd_username])
 
 if __name__ == "__main__":
     main()
